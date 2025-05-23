@@ -142,7 +142,9 @@ VisualizationFrame::VisualizationFrame(QWidget* parent)
   reset_button->setText("Reset");
   reset_button->setContentsMargins(0, 0, 0, 0);
   statusBar()->addPermanentWidget(reset_button, 0);
-  connect(reset_button, &QToolButton::clicked, this, &VisualizationFrame::VisualizationFrame::reset);
+  //connect(reset_button, &QToolButton::clicked, this, &VisualizationFrame::VisualizationFrame::reset);
+  //Reset button close the windows
+  connect(reset_button, &QToolButton::clicked, this, &VisualizationFrame::VisualizationFrame::close);
 
   status_label_ = new QLabel("");
   statusBar()->addPermanentWidget(status_label_, 1);
