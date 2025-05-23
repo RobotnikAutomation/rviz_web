@@ -404,6 +404,7 @@ void VisualizationFrame::initialize(const QString& display_config_file)
     }
   });
   ros_master_check_timer_->start(2000);
+  showMaximized();
 }
 
 void VisualizationFrame::initConfigs()
