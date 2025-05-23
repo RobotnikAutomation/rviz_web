@@ -54,6 +54,8 @@ PanelDockWidget::PanelDockWidget(const QString& name)
   close_button->setIconSize(QSize(10, 10));
 
   connect(close_button, &QToolButton::clicked, this, &PanelDockWidget::close);
+  // Hide the close button
+  close_button->setVisible(false);
 
   title_label_ = new QLabel(name, this);
 
