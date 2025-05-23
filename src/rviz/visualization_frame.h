@@ -401,6 +401,8 @@ protected:
 
   /// Indicates if the toolbar should be visible outside of fullscreen mode.
   bool toolbar_visible_;
+
+  QTimer* ros_master_check_timer_;
 };
 
 } // namespace rviz

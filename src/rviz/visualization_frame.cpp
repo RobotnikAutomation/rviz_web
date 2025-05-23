@@ -123,6 +123,7 @@ VisualizationFrame::VisualizationFrame(QWidget* parent)
   , post_load_timer_(new QTimer(this))
   , frame_count_(0)
   , toolbar_visible_(true)
+  , ros_master_check_timer_(new QTimer(this))
 {
   panel_factory_ = new PanelFactory();
 
@@ -153,7 +154,8 @@ VisualizationFrame::VisualizationFrame(QWidget* parent)
   statusBar()->addPermanentWidget(fps_label_, 0);
   original_status_bar_ = statusBar();
 
-  setWindowTitle("RViz[*]");
+  setWindowTitle("3D view");
+  setWindowFlags(Qt::Window | Qt::CustomizeWindowHint);
 }
 
 VisualizationFrame::~VisualizationFrame()
@@ -369,6 +371,19 @@ void VisualizationFrame::initialize(const QString& display_config_file)
   delete splash_;
   splash_ = nullptr;
 
+  // --- Keep only Interact, Move Camera, and Measure tools ---
+  QStringList allowed_tools = {"rviz/Interact", "rviz/MoveCamera", "rviz/Measure"};
+
+  for (int i = tool_man->numTools() - 1; i >= 0; --i)
+  {
+    Tool* tool = tool_man->getTool(i);
+    QString class_id = tool->getClassId();
+    if (!allowed_tools.contains(class_id))
+    {
+      tool_man->removeTool(i);
+    }
+  }
+
   manager_->startUpdate();
   initialized_ = true;
   Q_EMIT statusUpdate("RViz is ready.");
@@ -377,6 +392,16 @@ void VisualizationFrame::initialize(const QString& display_config_file)
           &VisualizationFrame::VisualizationFrame::updateFps);
   connect(manager_, &VisualizationManager::statusUpdate, this,
           &VisualizationFrame::VisualizationFrame::statusUpdate);
+
+  // Check ROS master connectivity every 2 seconds
+  connect(ros_master_check_timer_, &QTimer::timeout, this, [this]() {
+    if (!ros::master::check())
+    {
+      ROS_WARN("ROS master disconnected. Closing RViz.");
+      QApplication::quit();
+    }
+  });
+  ros_master_check_timer_->start(2000);
 }
 
 void VisualizationFrame::initConfigs()
@@ -453,7 +478,7 @@ void VisualizationFrame::savePersistentSettings()
 void VisualizationFrame::initMenus()
 {
   file_menu_ = menuBar()->addMenu("&File");
-
+  /*
   QAction* file_menu_open_action =
       file_menu_->addAction("&Open Config", this, &VisualizationFrame::onOpen, QKeySequence("Ctrl+O"));
   this->addAction(file_menu_open_action);
@@ -463,7 +488,7 @@ void VisualizationFrame::initMenus()
   QAction* file_menu_save_as_action = file_menu_->addAction(
       "Save Config &As", this, &VisualizationFrame::onSaveAs, QKeySequence("Ctrl+Shift+S"));
   this->addAction(file_menu_save_as_action);
-
+  */
   recent_configs_menu_ = file_menu_->addMenu("&Recent Configs");
   file_menu_->addAction("Save &Image", this, &VisualizationFrame::onSaveImage);
   if (show_choose_new_master_option_)
@@ -472,32 +497,37 @@ void VisualizationFrame::initMenus()
     file_menu_->addAction("Change &Master", this, &VisualizationFrame::changeMaster);
   }
   file_menu_->addSeparator();
-  file_menu_->addAction("&Preferences", this, &VisualizationFrame::openPreferencesDialog,
-                        QKeySequence("Ctrl+P"));
-
+  file_menu_->addAction("&Preferences", this, &VisualizationFrame::openPreferencesDialog/*,
+                        QKeySequence("Ctrl+P")*/);
+  /*
   QAction* file_menu_quit_action =
       file_menu_->addAction("&Quit", this, &VisualizationFrame::close, QKeySequence("Ctrl+Q"));
   file_menu_quit_action->setObjectName("actQuit");
   this->addAction(file_menu_quit_action);
-
+  */
+  //Hide the menu bar file_menu_
+  file_menu_->menuAction()->setVisible(false);
+  
   view_menu_ = menuBar()->addMenu("&Panels");
   view_menu_->addAction("Add &New Panel", this, &VisualizationFrame::openNewPanelDialog);
   delete_view_menu_ = view_menu_->addMenu("&Delete Panel");
   delete_view_menu_->setEnabled(false);
 
   QAction* fullscreen_action =
-      view_menu_->addAction("&Fullscreen", this, SLOT(setFullScreen(bool)), Qt::Key_F11);
+      view_menu_->addAction("&Fullscreen", this, SLOT(setFullScreen(bool))/*, Qt::Key_F11*/);
   fullscreen_action->setCheckable(true);
   this->addAction(
       fullscreen_action); // Also add to window, or the shortcut doest work when the menu is hidden.
   connect(this, &VisualizationFrame::fullScreenChange, fullscreen_action, &QAction::setChecked);
   view_menu_->addSeparator();
+  view_menu_->menuAction()->setVisible(false);
 
   QMenu* help_menu = menuBar()->addMenu("&Help");
   help_menu->addAction("Show &Help panel", this, &VisualizationFrame::showHelpPanel);
   help_menu->addAction("Open rviz wiki in browser", this, &VisualizationFrame::onHelpWiki);
   help_menu->addSeparator();
   help_menu->addAction("&About", this, &VisualizationFrame::onHelpAbout);
+  help_menu->menuAction()->setVisible(false);
 }
 
 void VisualizationFrame::initToolbars()
@@ -522,9 +552,11 @@ void VisualizationFrame::initToolbars()
   QToolButton* add_tool_button = new QToolButton();
   add_tool_button->setToolTip("Add a new tool");
   add_tool_button->setIcon(loadPixmap("package://rviz/icons/plus.png"));
+  /*
   toolbar_->addWidget(add_tool_button);
   connect(add_tool_button, &QToolButton::clicked, this,
           &VisualizationFrame::VisualizationFrame::openNewToolDialog);
+  */
 
   remove_tool_menu_ = new QMenu(toolbar_);
   QToolButton* remove_tool_button = new QToolButton();
@@ -532,9 +564,11 @@ void VisualizationFrame::initToolbars()
   remove_tool_button->setPopupMode(QToolButton::InstantPopup);
   remove_tool_button->setToolTip("Remove a tool from the toolbar");
   remove_tool_button->setIcon(loadPixmap("package://rviz/icons/minus.png"));
+  /*
   toolbar_->addWidget(remove_tool_button);
   connect(remove_tool_menu_, &QMenu::triggered, this,
           &VisualizationFrame::VisualizationFrame::onToolbarRemoveTool);
+  */
 
   QMenu* button_style_menu = new QMenu(toolbar_);
   QAction* action_tool_button_icon_only = new QAction("Icon only", toolbar_actions_);
@@ -555,9 +589,15 @@ void VisualizationFrame::initToolbars()
   button_style_button->setPopupMode(QToolButton::InstantPopup);
   button_style_button->setToolTip("Set toolbar style");
   button_style_button->setIcon(loadPixmap("package://rviz/icons/visibility.svg"));
+  /*
   toolbar_->addWidget(button_style_button);
   connect(button_style_menu, &QMenu::triggered, this,
           &VisualizationFrame::VisualizationFrame::onButtonStyleTool);
+  */
+  add_tool_button->setVisible(false);
+  remove_tool_button->setVisible(false);
+  button_style_button->setVisible(false);
+  
 }
 
 void VisualizationFrame::hideDockImpl(Qt::DockWidgetArea area, bool hide)
@@ -818,6 +858,7 @@ void VisualizationFrame::setDisplayConfigFile(const std::string& path)
   display_config_file_ = path;
 
   std::string title;
+  /*
   if (path == default_display_config_file_)
   {
     title = "RViz[*]";
@@ -826,12 +867,16 @@ void VisualizationFrame::setDisplayConfigFile(const std::string& path)
   {
     title = fs::path(path).filename().string() + "[*] - RViz";
   }
+  */
+  title = "3D view";
   setWindowTitle(QString::fromStdString(title));
   Q_EMIT displayConfigFileChanged(QString::fromStdString(path));
 }
 
 bool VisualizationFrame::saveDisplayConfig(const QString& path)
 {
+  return true;
+  /*
   Config config;
   save(config);
 
@@ -850,6 +895,7 @@ bool VisualizationFrame::saveDisplayConfig(const QString& path)
     error_message_ = "";
     return true;
   }
+  */
 }
 
 void VisualizationFrame::save(Config config)
@@ -1007,6 +1053,7 @@ void VisualizationFrame::savePreferences(Config config)
 
 bool VisualizationFrame::prepareToExit()
 {
+  return true;
   if (!initialized_)
   {
     return true;
