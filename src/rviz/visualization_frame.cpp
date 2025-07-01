@@ -374,7 +374,7 @@ void VisualizationFrame::initialize(const QString& display_config_file)
   splash_ = nullptr;
 
   // --- Keep only Interact, Move Camera, and Measure tools ---
-  QStringList allowed_tools = {"rviz/Interact", "rviz/MoveCamera", "rviz/Measure"};
+  QStringList allowed_tools = {"rviz/Interact", "rviz/MoveCamera", "rviz/Measure", "rviz/SetGoal"};
 
   for (int i = tool_man->numTools() - 1; i >= 0; --i)
   {
